@@ -1,65 +1,101 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { Loader2, Terminal, BookOpen } from "lucide-react";
 
 export default function Home() {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [solutionSteps, setSolutionSteps] = useState<string | null>(null);
+  const [manimScript, setManimScript] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    if (!prompt) return;
+
+    setLoading(true);
+    setError(null);
+    setSolutionSteps(null);
+    setManimScript(null);
+    setVideoUrl(null);
+
+    try {
+      const response = await fetch("http://localhost:8000/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to generate solution");
+      }
+
+      const data = await response.json();
+      if (data.status === "success" || data.status === "partial_success") {
+        setSolutionSteps(data.solution_steps);
+        setManimScript(data.manim_script);
+        if (data.video_url) {
+          setVideoUrl(data.video_url);
+        }
+      } else {
+        setError("Something went wrong with generation.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Error connecting to server. Make sure backend is running.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex min-h-screen flex-col items-center justify-start p-24 bg-neutral-950 text-white">
+      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
+        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+          Manim Math Solver&nbsp;
+          <code className="font-mono font-bold">by Gemini</code>
+        </p>
+      </div>
+
+      <div className="mt-12 w-full max-w-4xl flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <label className="font-semibold text-lg">Enter your Math/Physics Question</label>
+          <textarea
+            className="w-full h-32 p-4 rounded-lg bg-neutral-900 border border-neutral-700 focus:ring-2 focus:ring-blue-600 outline-none transition-all placeholder:text-neutral-600"
+            placeholder="e.g. A ball is thrown at 45 degrees with 10m/s velocity. Calculate the range."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <button
+          onClick={handleGenerate}
+          disabled={loading || !prompt}
+          className="w-full p-4 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-neutral-800 disabled:text-neutral-500 font-bold transition-all flex items-center justify-center gap-2"
+        >
+          {loading ? <><Loader2 className="animate-spin" /> Solving...</> : "Solve & Generate Script"}
+        </button>
+
+        {error && (
+          <div className="p-4 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200">
+            {error}
+          </div>
+        )}
+
+        {/* Video Player */}
+        {videoUrl && (
+          <div className="mt-8 flex flex-col gap-2">
+            <h2 className="text-xl font-bold">Generated Animation</h2>
+            <div className="w-full aspect-video bg-black rounded-lg overflow-hidden border border-neutral-800 shadow-2xl shadow-blue-900/20">
+              <video controls src={videoUrl} className="w-full h-full" autoPlay loop />
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
